@@ -5,8 +5,9 @@ import psutil
 import uvicorn
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.responses import HTMLResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, ConfigDict
 from contextlib import asynccontextmanager
+from typing import Literal
 
 import auth
 import power_actions
@@ -34,12 +35,37 @@ logger = logging.getLogger("main")
 _process = psutil.Process(os.getpid())
 
 
-def load_config() -> dict:
+class ServiceConfig(BaseModel):
+    id: str
+    label: str
+    host: str
+    port: int
+    model_config = ConfigDict(extra="forbid")
+
+
+class ModeConfig(BaseModel):
+    label: str
+    plan_guid: str | None = None
+    disable_sleep: bool = False
+    keep_net: bool = False
+    model_config = ConfigDict(extra="forbid")
+
+
+class ConfigModel(BaseModel):
+    pin: str = Field(min_length=4, max_length=20)
+    port: int = Field(ge=1, le=65535, default=5000)
+    modes: dict[str, ModeConfig] = Field(default_factory=dict)
+    services: list[ServiceConfig] = Field(default_factory=list)
+    model_config = ConfigDict(extra="forbid")
+
+
+def load_config() -> ConfigModel:
     with open(CONFIG_PATH, "r") as f:
-        return json.load(f)
+        raw = json.load(f)
+    return ConfigModel(**raw)
 
 config = load_config()
-PORT = config.get("port", 5000)
+PORT = config.port
 
 
 class ShutdownRequest(BaseModel):
