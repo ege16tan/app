@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PC Power Control</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0f1117; --surface: #1a1d28; --border: #2a2d3a;
+  --text: #e1e4ed; --muted: #7a7f93; --accent: #4f8cff;
+  --green: #34d399; --red: #f87171; --yellow: #fbbf24;
+}
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg); color: var(--text); min-height: 100vh;
+  display: flex; flex-direction: column; align-items: center; padding: 24px;
+}
+.container { max-width: 800px; width: 100%; }
+
+/* Header */
+header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 28px; padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+header h1 { font-size: 1.4rem; font-weight: 600; }
+.badge {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 12px; border-radius: 20px; font-size: 0.85rem;
+  background: var(--surface); border: 1px solid var(--border);
+}
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.dot.online { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.dot.offline { background: var(--red); box-shadow: 0 0 6px var(--red); }
+
+/* Cards */
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 24px; }
+.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  padding: 16px; position: relative;
+}
+.card .label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+.card .value { font-size: 1.3rem; font-weight: 600; }
+.card .sub { font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
+
+/* Sections */
+.section { margin-bottom: 24px; }
+.section h2 { font-size: 0.9rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+
+/* Service list */
+.services { list-style: none; }
+.service {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 16px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 8px; margin-bottom: 6px;
+}
+.service:last-child { margin-bottom: 0; }
+.service .info { display: flex; flex-direction: column; }
+.service .name { font-weight: 500; }
+.service .host { font-size: 0.8rem; color: var(--muted); }
+.service .status { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; }
+.service .latency { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+
+/* Actions */
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
+.actions button {
+  padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text); cursor: pointer;
+  font-size: 0.85rem; transition: all 0.15s;
+}
+.actions button:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+.actions button.danger:hover { background: var(--red); border-color: var(--red); }
+
+/* Mode buttons */
+.mode-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
+.mode-btn {
+  padding: 10px 20px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text); cursor: pointer;
+  font-size: 0.85rem; transition: all 0.15s; position: relative;
+}
+.mode-btn:hover { border-color: var(--accent); }
+.mode-btn.active { border-color: var(--green); background: rgba(52,211,153,0.1); }
+.mode-btn.active::after {
+  content: ''; position: absolute; top: -4px; right: -4px;
+  width: 10px; height: 10px; background: var(--green);
+  border-radius: 50%; border: 2px solid var(--surface);
+}
+
+/* Toast */
+.toast {
+  position: fixed; bottom: 24px; right: 24px;
+  padding: 12px 20px; border-radius: 8px; color: #fff;
+  font-size: 0.85rem; z-index: 999; opacity: 0;
+  transform: translateY(20px); transition: all 0.3s;
+  pointer-events: none;
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.success { background: var(--green); }
+.toast.error { background: var(--red); }
+
+@media (max-width: 600px) {
+  body { padding: 16px; }
+  .cards { grid-template-columns: 1fr 1fr; }
+  header { flex-direction: column; gap: 8px; align-items: flex-start; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>⚡ PC Power Control</h1>
+    <div class="badge">
+      <span class="dot online" id="statusDot"></span>
+      <span id="statusText">Online</span>
+    </div>
+  </header>
+
+  <div class="cards" id="statsCards">
+    <div class="card"><div class="label">CPU</div><div class="value" id="cpuVal">-</div><div class="sub">Auslastung</div></div>
+    <div class="card"><div class="label">RAM</div><div class="value" id="ramVal">-</div><div class="sub">MB</div></div>
+    <div class="card"><div class="label">Power Plan</div><div class="value" id="planVal" style="font-size:0.9rem">-</div><div class="sub">Aktiv</div></div>
+    <div class="card"><div class="label">Modus</div><div class="value" id="modeVal" style="font-size:0.9rem">-</div><div class="sub">Aktiv</div></div>
+  </div>
+
+  <div class="section">
+    <h2>Modi</h2>
+    <div class="mode-buttons" id="modeButtons"></div>
+  </div>
+
+  <div class="section">
+    <h2>Aktionen</h2>
+    <div class="actions">
+      <button onclick="doAction('shutdown')" class="danger">Herunterfahren</button>
+      <button onclick="doAction('restart')" class="danger">Neustarten</button>
+      <button onclick="doAction('sleep')">Ruhezustand</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Dienste</h2>
+    <ul class="services" id="servicesList">
+      <li style="color:var(--muted);text-align:center;padding:20px;">Keine Dienste konfiguriert</li>
+    </ul>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API_BASE = '';
+const PIN = '';
+let dataCache = {};
+
+async function api(path, opts = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (PIN) headers['X-PIN'] = PIN;
+  const res = await fetch(API_BASE + path, { ...opts, headers });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(err || res.statusText);
+  }
+  return res.json();
+}
+
+function showToast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast ' + type + ' show';
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+async function loadDashboard() {
+  try {
+    const data = await api('/api/dashboard');
+    dataCache = data;
+
+    const dot = document.getElementById('statusDot');
+    const txt = document.getElementById('statusText');
+    if (data.status === 'ok') {
+      dot.className = 'dot online'; txt.textContent = 'Online';
+    } else {
+      dot.className = 'dot offline'; txt.textContent = 'Offline';
+    }
+
+    document.getElementById('cpuVal').textContent = (data.cpu_percent ?? 0).toFixed(1) + '%';
+    document.getElementById('ramVal').textContent = (data.memory_mb ?? 0).toFixed(0);
+    document.getElementById('planVal').textContent = data.active_plan_name || '-';
+    document.getElementById('modeVal').textContent = data.active_mode_label || 'Keiner';
+
+    renderModes(data.modes || []);
+    renderServices(data.services || []);
+  } catch (e) {
+    document.getElementById('statusDot').className = 'dot offline';
+    document.getElementById('statusText').textContent = 'Offline';
+    showToast('Fehler beim Laden: ' + e.message, 'error');
+  }
+}
+
+function renderModes(modes) {
+  const el = document.getElementById('modeButtons');
+  if (!modes.length) { el.innerHTML = '<span style="color:var(--muted);font-size:0.85rem">Keine Modi konfiguriert</span>'; return; }
+  el.innerHTML = modes.map(m =>
+    `<button class="mode-btn${m.active ? ' active' : ''}" onclick="activateMode('${m.id}')">${m.label}</button>`
+  ).join('');
+}
+
+function renderServices(services) {
+  const el = document.getElementById('servicesList');
+  if (!services.length) { el.innerHTML = '<li style="color:var(--muted);text-align:center;padding:20px;">Keine Dienste konfiguriert</li>'; return; }
+  el.innerHTML = services.map(s =>
+    `<li class="service">
+      <div class="info">
+        <span class="name">${s.label || s.host}</span>
+        <span class="host">${s.host}${s.port ? ':' + s.port : ''}</span>
+        ${s.latency_ms ? '<span class="latency">' + s.latency_ms + ' ms</span>' : ''}
+      </div>
+      <div class="status">
+        <span class="dot ${s.online ? 'online' : 'offline'}"></span>
+        ${s.online ? 'Online' : 'Offline'}
+      </div>
+    </li>`
+  ).join('');
+}
+
+async function activateMode(modeId) {
+  try {
+    await api('/modes/' + modeId + '/activate', { method: 'POST' });
+    showToast('Modus aktiviert: ' + modeId);
+    loadDashboard();
+  } catch (e) {
+    showToast('Fehler: ' + e.message, 'error');
+  }
+}
+
+async function doAction(action) {
+  const labels = { shutdown: 'Herunterfahren', restart: 'Neustarten', sleep: 'Ruhezustand' };
+  if (!confirm(labels[action] + ' wirklich ausführen?')) return;
+
+  try {
+    let body = {};
+    if (action === 'shutdown') body = { delay_seconds: 10 };
+    await api('/' + action, { method: 'POST', body: JSON.stringify(body) });
+    showToast(labels[action] + ' wird ausgeführt');
+  } catch (e) {
+    showToast('Fehler: ' + e.message, 'error');
+  }
+}
+
+loadDashboard();
+setInterval(loadDashboard, 5000);
+</script>
+</body>
+</html>

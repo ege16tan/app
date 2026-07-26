@@ -1,5 +1,19 @@
 {
   "pin": "1234",
   "port": 5000,
-  "download_mode_plan_guid": null
+  "modes": {
+    "download": {
+      "label": "Download-Modus",
+      "plan_guid": null,
+      "disable_sleep": true,
+      "keep_net": true
+    },
+    "silent": {
+      "label": "Silent-Modus",
+      "plan_guid": null,
+      "disable_sleep": false,
+      "keep_net": false
+    }
+  },
+  "services": []
 }

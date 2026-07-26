@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">PC Power Controller</string>
+    <string name="server_ip_hint">Server IP (e.g., 192.168.1.100)</string>
+    <string name="pin_hint">PIN (default: 1234)</string>
+    <string name="connect">Connect</string>
+    <string name="btn_shutdown">Shutdown</string>
+    <string name="btn_restart">Restart</string>
+    <string name="btn_sleep">Sleep</string>
+    <string name="btn_refresh_plans">Refresh Power Plans</string>
+    <string name="btn_download_mode">Download Mode</string>
+    <string name="status_connected">Connected</string>
+    <string name="status_disconnected">Disconnected</string>
+    <string name="status_checking">Checking…</string>
+</resources>
